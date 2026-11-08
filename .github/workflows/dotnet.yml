@@ -1,0 +1,29 @@
+
+name: AegisFlow - Build and Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore AegisFlow.slnx
+
+      - name: Build
+        run: dotnet build AegisFlow.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test AegisFlow.slnx --configuration Release --no-build
