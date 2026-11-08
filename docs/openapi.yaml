@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: AegisFlow Order API
+  version: 1.0.0
+  description: Transaction-safe order reservations with idempotent commands.
+servers:
+  - url: http://localhost:5081
+paths:
+  /health:
+    get:
+      summary: Service health
+      responses:
+        '200':
+          description: Healthy
+  /api/products:
+    get:
+      summary: List product inventory
+      responses:
+        '200':
+          description: Product list
+    post:
+      summary: Add an inventory item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created
+        '409':
+          description: SKU conflict
+  /api/products/{id}:
+    get:
+      summary: Product detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Product found }
+        '404': { description: Not found }
+  /api/orders:
+    post:
+      summary: Create an atomic stock reservation
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderInput'
+      responses:
+        '201': { description: Newly committed order }
+        '200': { description: Identical order request replayed }
+        '400': { description: Invalid input }
+        '404': { description: Unknown product }
+        '409': { description: Insufficient stock or conflicting key }
+  /api/orders/{id}:
+    get:
+      summary: Fetch an existing order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Found }
+        '404': { description: Not found }
+  /api/orders/{id}/receipt.xml:
+    get:
+      summary: Export receipt in XML
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: XML receipt
+          content:
+            application/xml:
+              schema: { type: string }
+        '404': { description: Not found }
+components:
+  schemas:
+    ProductInput:
+      type: object
+      required: [sku, name, available]
+      properties:
+        sku: { type: string, maxLength: 80 }
+        name: { type: string, maxLength: 200 }
+        available: { type: integer, minimum: 0 }
+    OrderInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }

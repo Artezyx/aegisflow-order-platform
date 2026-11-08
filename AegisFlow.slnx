@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/AegisFlow.Api/AegisFlow.Api.csproj" />
+  <Project Path="tests/AegisFlow.Tests/AegisFlow.Tests.csproj" />
+</Solution>

@@ -1,0 +1,15 @@
+@api = http://localhost:5081
+GET {{api}}/health
+###
+POST {{api}}/api/products
+Content-Type: application/json
+
+{"sku":"SKU-2026-001","name":"Precision Keyboard","available":8}
+###
+GET {{api}}/api/products
+###
+POST {{api}}/api/orders
+Content-Type: application/json
+Idempotency-Key: sale-2026-0001
+
+{"items":[{"productId":"00000000-0000-0000-0000-000000000001","quantity":2}]}
