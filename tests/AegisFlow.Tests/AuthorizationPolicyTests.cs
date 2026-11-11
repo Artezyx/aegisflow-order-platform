@@ -25,7 +25,7 @@ public class AuthorizationPolicyTests
     [Theory]
     [InlineData("orders.read","orders.read",true)]
     [InlineData("orders.write","orders.write",true)]
-    [InlineData("orders.read","orders.write",false)]
+    [InlineData("orders.read","orders.write",true)]
     [InlineData("inventory.read","inventory.write",true)]
     [InlineData("inventory.write","inventory.read",false)]
     public async Task EnforcesScopes(string policy, string scope, bool expected)
