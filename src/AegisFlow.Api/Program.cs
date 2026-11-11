@@ -7,7 +7,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("DefaultConnection must be configured.");
 builder.Services.AddDbContext<AegisDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddOrderApiAuthentication(builder.Configuration);
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -18,13 +21,14 @@ using (var scope = app.Services.CreateScope())
 app.MapGet("/health", () => Results.Ok(new { service = "AegisFlow", status = "healthy" }));
 
 app.MapGet("/api/products", async (AegisDbContext db, CancellationToken ct) =>
-    Results.Ok(await db.Products.AsNoTracking().OrderBy(x => x.Sku).ToListAsync(ct)));
+    Results.Ok(await db.Products.AsNoTracking().OrderBy(x => x.Sku).ToListAsync(ct)))
+    .RequireAuthorization("inventory.read");
 
 app.MapGet("/api/products/{id:guid}", async (Guid id, AegisDbContext db, CancellationToken ct) =>
 {
     var product = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);
     return product is null ? Results.NotFound() : Results.Ok(product);
-});
+}).RequireAuthorization("inventory.read");
 
 app.MapPost("/api/products", async (ProductInput input, AegisDbContext db, CancellationToken ct) =>
 {
@@ -36,7 +40,7 @@ app.MapPost("/api/products", async (ProductInput input, AegisDbContext db, Cance
     try { await db.SaveChangesAsync(ct); }
     catch (DbUpdateException) { return Results.Conflict(new { error = "SKU already exists or violates a constraint." }); }
     return Results.Created($"/api/products/{product.Id}", product);
-});
+}).RequireAuthorization("inventory.write");
 
 app.MapPost("/api/orders", async (HttpRequest request, CreateOrderInput input, OrderService service, CancellationToken ct) =>
 {
@@ -52,7 +56,7 @@ app.MapPost("/api/orders", async (HttpRequest request, CreateOrderInput input, O
     {
         return Results.Problem(failure.Message, statusCode: failure.StatusCode);
     }
-});
+}).RequireAuthorization("orders.write");
 
 app.MapGet("/api/orders/{id:guid}", async (Guid id, AegisDbContext db, CancellationToken ct) =>
 {
@@ -61,7 +65,7 @@ app.MapGet("/api/orders/{id:guid}", async (Guid id, AegisDbContext db, Cancellat
     if (order is null) return Results.NotFound();
     return Results.Ok(new OrderOutcome(order.Id, order.CreatedAt,
         order.Lines.Select(l => new LineInput(l.ProductId, l.Quantity)).ToArray(), false));
-});
+}).RequireAuthorization("orders.read");
 
 app.MapGet("/api/orders/{id:guid}/receipt.xml", async (Guid id, AegisDbContext db, CancellationToken ct) =>
 {
@@ -73,6 +77,6 @@ app.MapGet("/api/orders/{id:guid}/receipt.xml", async (Guid id, AegisDbContext d
         order.Lines.Select(l => new XElement("item",
             new XAttribute("productId", l.ProductId), new XAttribute("quantity", l.Quantity)))));
     return Results.Text(xml.ToString(), "application/xml");
-});
+}).RequireAuthorization("orders.read");
 
 app.Run();
