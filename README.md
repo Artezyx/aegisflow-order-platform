@@ -18,6 +18,7 @@ Requirements: .NET 10 SDK and SQL Server 2022+ (local / container). On Windows, 
 
 ```bash
 docker compose up -d
+# Set Auth__SigningKey to a locally generated random value (>=32 bytes).
 dotnet restore
 dotnet run --project src/AegisFlow.Api
 ```
@@ -63,3 +64,6 @@ CI runs restore, build and tests on push/PR. Database server integration under c
 ## Design
 
 [Architecture and invariants](docs/ARCHITECTURE.md) · [OpenAPI contract](docs/openapi.yaml) · [API requests](requests.http)
+
+## JWT security / load checks
+All `/api` routes now require verified bearer tokens and separate read/write scopes. Examples above must include `Authorization: Bearer <test-token>` with the necessary scopes. See [SECURITY_AND_LOAD.md](docs/SECURITY_AND_LOAD.md).
