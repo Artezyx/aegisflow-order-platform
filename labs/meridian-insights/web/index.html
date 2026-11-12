@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Meridian Insights</title><style>
+body{font-family:system-ui;background:#f3f6fa;color:#142c48;margin:0}header{background:#132b49;color:white;padding:24px 6vw}main{padding:20px;margin:auto;max-width:1100px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}.card{background:white;padding:22px;border-radius:14px;box-shadow:0 2px 8px #11253a18}.card strong{display:block;font-size:26px;margin-top:8px}button{background:#185b9c;color:white;border:0;border-radius:8px;padding:12px 18px}#report{height:620px;margin-top:20px;background:white}#status{color:#425770}</style></head>
+<body><header><h1>Meridian Insights</h1><p>.NET 10 · SQL Server · Power BI</p></header><main><div class="cards">
+<div class="card">Revenue<strong id="revenue">—</strong></div>
+<div class="card">Gross margin<strong id="margin">—</strong></div>
+<div class="card">Open pipeline<strong id="pipeline">—</strong></div>
+<div class="card">Orders<strong id="orders">—</strong></div></div><p id="status" role="status">Loading local analytics…</p><h2>Power BI Report</h2><p>Sign in with an authorized Microsoft account to view the report.</p>
+<button id="connect">Connect Power BI</button><div id="report" aria-label="Embedded Power BI"></div></main><script type="module" src="/src/main.ts"></script></body></html>
