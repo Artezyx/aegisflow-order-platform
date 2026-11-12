@@ -17,10 +17,8 @@ jobs:
         with: {dotnet-version: '10.0.x'}
       - name: Install MAUI Android workload
         run: dotnet workload install maui-android
-      - name: Restore Android x64 emulator assets
-        run: dotnet restore labs/orbitfield-maui/app/OrbitField.App.csproj -p:TargetFramework=net10.0-android -p:RuntimeIdentifier=android-x64 -p:AcceptAndroidSDKLicenses=true
-      - name: Compile Android x64 APK
-        run: dotnet build labs/orbitfield-maui/app/OrbitField.App.csproj -f net10.0-android -r android-x64 --no-restore -c Debug -p:AndroidPackageFormat=apk -p:AcceptAndroidSDKLicenses=true
+      - name: Compile Android x64 APK with project-reference restore
+        run: dotnet build labs/orbitfield-maui/app/OrbitField.App.csproj -f net10.0-android -r android-x64 -c Debug -p:AndroidPackageFormat=apk -p:AcceptAndroidSDKLicenses=true
       - uses: actions/upload-artifact@v4
         with:
           name: orbitfield-android-apk
