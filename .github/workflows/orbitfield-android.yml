@@ -1,0 +1,58 @@
+name: OrbitField Android build and emulator
+on:
+  push:
+    paths: ['labs/orbitfield-maui/**','.github/workflows/orbitfield-android.yml']
+  pull_request:
+    paths: ['labs/orbitfield-maui/**','.github/workflows/orbitfield-android.yml']
+  workflow_dispatch:
+jobs:
+  android-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21'}
+      - uses: actions/setup-dotnet@v6
+        with: {dotnet-version: '10.0.x'}
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+      - name: Compile Android x64 APK with project-reference restore
+        run: dotnet build labs/orbitfield-maui/app/OrbitField.App.csproj -f net10.0-android -r android-x64 -c Debug -p:AndroidPackageFormat=apk -p:AcceptAndroidSDKLicenses=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbitfield-android-apk
+          path: labs/orbitfield-maui/app/bin/Debug/net10.0-android/**/*.apk
+          if-no-files-found: error
+  android-emulator:
+    needs: android-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {name: orbitfield-android-apk, path: apk}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot app on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            set -e
+            FILE="$(find apk -name '*.apk' | head -n 1)"
+            test -n "$FILE"
+            adb install -r "$FILE"
+            adb shell monkey -p com.orbitfield.workorders -c android.intent.category.LAUNCHER 1
+            sleep 12
+            adb shell pidof com.orbitfield.workorders
+            adb shell uiautomator dump /sdcard/window.xml
+            adb pull /sdcard/window.xml /tmp/orbitfield-ui.xml
+            python3 -c "from pathlib import Path; assert 'OrbitField' in Path('/tmp/orbitfield-ui.xml').read_text()"
