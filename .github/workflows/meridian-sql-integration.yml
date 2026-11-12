@@ -1,0 +1,51 @@
+name: Meridian Insights SQL Server integration
+on:
+  push:
+    paths:
+      - 'labs/meridian-insights/**'
+      - '.github/workflows/meridian-sql-integration.yml'
+  pull_request:
+    paths:
+      - 'labs/meridian-insights/**'
+      - '.github/workflows/meridian-sql-integration.yml'
+  workflow_dispatch:
+jobs:
+  live-sql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Start isolated SQL Server
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "MSSQL_SA_PASSWORD=Meridian_$(openssl rand -hex 20)!" >> "$GITHUB_ENV"
+          docker pull mcr.microsoft.com/mssql/server:2022-latest
+      - name: Create database and verify API over HTTP
+        shell: bash
+        env:
+          ConnectionStrings__Meridian: "Server=127.0.0.1,1433;Database=MeridianInsights;User Id=sa;Password=${{ env.MSSQL_SA_PASSWORD }};Encrypt=True;TrustServerCertificate=True"
+        run: |
+          set -euo pipefail
+          docker run -d --name meridian-sql             -p 127.0.0.1:1433:1433             -e ACCEPT_EULA=Y -e MSSQL_PID=Developer             -e MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD"             mcr.microsoft.com/mssql/server:2022-latest
+          READY=0
+          for i in $(seq 1 70); do
+            if docker exec meridian-sql /opt/mssql-tools18/bin/sqlcmd               -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              READY=1; break
+            fi
+            sleep 3
+          done
+          if [ "$READY" -ne 1 ]; then docker logs --tail 120 meridian-sql; exit 1; fi
+          docker cp labs/meridian-insights/sql/01_schema_seed.sql meridian-sql:/tmp/seed.sql
+          docker exec meridian-sql /opt/mssql-tools18/bin/sqlcmd             -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b -i /tmp/seed.sql
+          dotnet run --project labs/meridian-insights/api/Meridian.Api.csproj             --urls http://127.0.0.1:5098 > /tmp/meridian-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true; cat /tmp/meridian-api.log' EXIT
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:5098/health >/dev/null; then break; fi
+            sleep 2
+          done
+          python3 labs/meridian-insights/tests/verify_http.py

@@ -1,0 +1,8 @@
+-- Copy each measure separately into the FactSales table of Power BI Desktop.
+Revenue = CALCULATE(SUM(FactSales[SalesAmount]),FactSales[Status]="Completed")
+Cost = CALCULATE(SUM(FactSales[CostAmount]),FactSales[Status]="Completed")
+Gross Profit = [Revenue]-[Cost]
+Gross Margin % = DIVIDE([Gross Profit],[Revenue],0)
+Completed Orders = CALCULATE(COUNTROWS(FactSales),FactSales[Status]="Completed")
+Average Ticket = DIVIDE([Revenue],[Completed Orders],0)
+Open Pipeline = CALCULATE(SUM(FactSales[SalesAmount]),FactSales[Status]="Open")
